@@ -1,0 +1,166 @@
+* Configuration
+I'll be working through all exercises using the DrRacket's SICP Collections.
+http://docs.racket-lang.org/sicp-manual/index.html
+
+Org-babel support thanks to Waldemar Quevedo's ob-racket driver
+https://github.com/wallyqs/ob-racket
+
+#+BEGIN_SRC racket
+#lang sicp
+(inc 42)
+#+END_SRC
+
+#+RESULTS:
+: 43
+
+
+* Chapter 1
+** 1.1
+ #+BEGIN_SRC racket
+ #lang sicp
+ 10
+ (+ 5 3 4)
+ (- 9 1)
+ (/ 6 2)
+ (+ (* 2 4) (- 4 6))
+ (define a 3)
+ (define b (+ a 1))
+ (+ a b (* a b))
+ (= a b)
+ (if (and (> b a) (< b (* a b)))
+     b
+     a)
+ (cond ((= a 4) 6)
+       ((= b 4) (+ 6 7 a))
+       (else 25))
+ (+ 2 (if (> b a) b a))
+ (* (cond ((> a b) a)
+          ((< a b) b)
+          (else -1))
+    (+ a 1))
+ #+END_SRC 
+
+ #+RESULTS:
+ #+begin_example
+ 10
+ 12
+ 8
+ 3
+ 6
+ 19
+ #f
+ 4
+ 16
+ 6
+ 16
+ #+end_example
+
+** 1.2
+ #+BEGIN_QUOTE
+ Translate the following expression into prefix form
+ (5 + 4 + (2 - (3 - (6 + 4/5)))) / (3(6-2)(2-7))
+ #+END_QUOTE 
+
+ #+BEGIN_SRC racket
+   #lang sicp
+   (/ (+ 5
+         4
+         (- 2 (- 3 (+ 6 (/ 4 5)))))
+      (* 3
+         (- 6 2)
+         (- 2 7)))
+ #+END_SRC
+
+ #+RESULTS:
+ : -37/150
+
+** 1.3
+
+ #+BEGIN_QUOTE
+ Define a procedure that takes three nubmers as arguments and returns 
+ the sum of the squares of the two larger numbers
+ #+END_QUOTE
+
+ For cases where terms are equal, priority will be assigned in order of x > y > z
+
+ #+BEGIN_SRC  racket
+   #lang sicp
+   (define (sum-of-larger-squares x y z)
+       (define (square x) (* x x))
+       (+ (if (or (>= x y ) (>= x z )) (square x) 0)
+          (if (or (>= y z ) (> y x )) (square y) 0)
+          (if (or (> z x ) (> z y )) (square z) 0)))
+
+   (sum-of-larger-squares 1 2 3)
+   (sum-of-larger-squares 2 2 2)
+   (sum-of-larger-squares 2 2 4)
+ #+END_SRC
+
+ #+RESULTS:
+ : 13
+ : 8
+ : 20
+** 1.4
+ For cases when b is greater than zero, the expression `+ a b` is evaluated.
+ For cases when b is less than or equal to zero, the expression `- a b` is evaluated.
+ #+BEGIN_SRC racket
+ #lang sicp
+   (define (a-plus-abs-b a b)
+       ((if (> b 0) + -) a b))
+   (a-plus-abs-b -2 4)
+ #+END_SRC
+
+ #+RESULTS:
+ : 2
+** 1.5
+ #+BEGIN_SRC racket
+   #lang sicp
+   (define (p) (p))
+   (define (test x y)
+     (if (= x 0)
+         0
+         y))
+ #+END_SRC
+
+ Executing the expression (test 0 (p)) results in an infinite loop.
+ This is because the interpreter is using `applicative-order evaluation`. In this substitution model, all arguments are evaluated before being applied. Since `(p)` is defined recursively as itself, execution never terminates.
+ In `normal-order evaluation, (p) would never get evaluated, as normal-order does not evaluate arguments until they are needed (which in this case because `= x 0` is true, is never).
+** 1.6
+ #+BEGIN_SRC racket
+   #lang sicp
+   ;; Square root by Newton's Method implementation
+   (define (square x) (* x x))
+   (square 2)
+
+   (define (good-enough? guess x)
+     (< (abs (- (square guess) x)) 0.001))
+
+   (define (average x y)
+     (/ (+ x y) 2))
+
+   (define (improve guess x)
+     (average guess (/ x guess)))
+
+   (define (new-if predicate then-clause else-clause)
+     (cond (predicate then-clause)
+     (else else-clause)))
+
+   (define (sqrt-iter guess x)
+     (new-if (good-enough? guess x)
+         guess
+         (sqrt-iter (improve guess x)
+                    x)))
+
+   (define (sqrt x)
+     (sqrt-iter 1.0 x))
+
+
+
+   (sqrt 4)
+
+ #+END_SRC
+
+ #+RESULTS:
+ : 4
+ : 2.0000000929222947
+
