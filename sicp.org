@@ -1,3 +1,5 @@
+#+property: header-args :lang sicp 
+
 * Configuration
 I'll be working through all exercises using the DrRacket's SICP Collections.
 http://docs.racket-lang.org/sicp-manual/index.html
@@ -17,7 +19,6 @@ https://github.com/wallyqs/ob-racket
 * Chapter 1
 ** 1.1
  #+BEGIN_SRC racket
- #lang sicp
  10
  (+ 5 3 4)
  (- 9 1)
@@ -55,6 +56,7 @@ https://github.com/wallyqs/ob-racket
  16
  #+end_example
 
+
 ** 1.2
  #+BEGIN_QUOTE
  Translate the following expression into prefix form
@@ -62,7 +64,6 @@ https://github.com/wallyqs/ob-racket
  #+END_QUOTE 
 
  #+BEGIN_SRC racket
-   #lang sicp
    (/ (+ 5
          4
          (- 2 (- 3 (+ 6 (/ 4 5)))))
@@ -84,7 +85,6 @@ https://github.com/wallyqs/ob-racket
  For cases where terms are equal, priority will be assigned in order of x > y > z
 
  #+BEGIN_SRC  racket
-   #lang sicp
    (define (sum-of-larger-squares x y z)
        (define (square x) (* x x))
        (+ (if (or (>= x y ) (>= x z )) (square x) 0)
@@ -104,7 +104,6 @@ https://github.com/wallyqs/ob-racket
  For cases when b is greater than zero, the expression `+ a b` is evaluated.
  For cases when b is less than or equal to zero, the expression `- a b` is evaluated.
  #+BEGIN_SRC racket
- #lang sicp
    (define (a-plus-abs-b a b)
        ((if (> b 0) + -) a b))
    (a-plus-abs-b -2 4)
@@ -114,7 +113,6 @@ https://github.com/wallyqs/ob-racket
  : 2
 ** 1.5
  #+BEGIN_SRC racket
-   #lang sicp
    (define (p) (p))
    (define (test x y)
      (if (= x 0)
@@ -126,11 +124,12 @@ https://github.com/wallyqs/ob-racket
  This is because the interpreter is using `applicative-order evaluation`. In this substitution model, all arguments are evaluated before being applied. Since `(p)` is defined recursively as itself, execution never terminates.
  In `normal-order evaluation, (p) would never get evaluated, as normal-order does not evaluate arguments until they are needed (which in this case because `= x 0` is true, is never).
 ** 1.6
+ 
+Evaluate square roots by newton's method. 
+
+ #+NAME: sqrt_newton
  #+BEGIN_SRC racket
-   #lang sicp
-   ;; Square root by Newton's Method implementation
    (define (square x) (* x x))
-   (square 2)
 
    (define (good-enough? guess x)
      (< (abs (- (square guess) x)) 0.001))
@@ -141,26 +140,116 @@ https://github.com/wallyqs/ob-racket
    (define (improve guess x)
      (average guess (/ x guess)))
 
-   (define (new-if predicate then-clause else-clause)
-     (cond (predicate then-clause)
-     (else else-clause)))
-
    (define (sqrt-iter guess x)
-     (new-if (good-enough? guess x)
+     (if (good-enough? guess x)
          guess
          (sqrt-iter (improve guess x)
                     x)))
 
    (define (sqrt x)
      (sqrt-iter 1.0 x))
+#+END_SRC
+
+Test the sqrt_newton block:
+#+BEGIN_SRC racket :var sqrt=sqrt_newton
+  (sqrt 4)
+#+END_SRC
+
+#+RESULTS:
+: 2
 
 
+Executing this block will crash emacs on windows. don't do it.
+ 
+ Usage of new-if results in the infinite evaluation of `sqrt-iter (improve guess x)`,
+because in applicative-order evaluation, the operator and operand are both evaluated 
+before the resulting procedure is applied to the resulting arguments. `if` is a special
+case wherein the predicate is evaluated first, and then only one of either the 
+consequent or alternant is evaluated.
 
-   (sqrt 4)
+#+BEGIN_SRC racket :noweb
+   <<sqrt_newton>>
+   (define (new-if predicate then-clause else-clause)
+     (cond (predicate then-clause)
+     (else else-clause)))
+
+   (define (sqrt-iter-newif guess x)
+     (new-if (good-enough? guess x)
+         guess
+         (sqrt-iter (improve guess x)
+                    x)))
+
+;; Commenting this out to prevent accidental freezing of emacs
+;;   (define (sqrt x)
+;;     (sqrt-iter-newiff 1.0 x))
+;;   (sqrt 4)
 
  #+END_SRC
+** 1.7
+For small numbers, 0.0001 is too large of a tolerance to be meaningful.
+For large numbers, it is too small of a tolerance to be meaningful 
 
- #+RESULTS:
- : 4
- : 2.0000000929222947
+This version of good enough accepts an additional argument of the previous guess, and tests for a relative change
+between the current guess and the old-guess
+
+#+name good-enough
+#+BEGIN_SRC racket
+  (define (good-enough?-2 guess x old-guess)
+      (<= (abs (- guess old-guess))
+          (* guess .0001)))
+#+END_SRC
+#+BEGIN_SRC racket :noweb yes
+  <<sqrt_newton>> 
+  <<good-enough>>
+
+  (define (sqrt-iter-2 guess x old-guess)
+      (if (good-enough?-2 guess x old-guess)
+         guess
+          (sqrt-iter-2 (improve guess x)
+                  x
+                  guess)))
+  (define (sqrt-2 x) 
+      (sqrt-iter-2 1.0 x 2.0))
+
+  (sqrt 0.555555555555555555555555)
+
+#+END_SRC
+
+#+RESULTS:
+: 0.745356298547788
+
+** 1.8
+Cube roots can be estimated based on the following formula, given an approximation y, and a cube root x 
+
+((x/y^2) + 2y) / 3)
+
+This one gave me a bit of a headache-- I was passing integer values into cube-rt-iter, and was getting back a fraction instead of a decimal (1/2 vs 0.5).
+
+This implementation takes advantage of both block & lexical scoping.
+
+#+BEGIN_SRC racket
+   (define (cube-rt x)
+     (define (square n) (* n n))
+     (define (improve-cube y)
+       (/ (+ (/ x
+               (square y))
+             (* 2 y))
+           3))
+     (define (cube-rt-iter guess old-guess)
+
+       (define (good-enough?)
+           (<= (abs (- guess old-guess))
+               (* guess 0.0001)))
+
+       (if (good-enough?)
+           guess
+           (cube-rt-iter (improve-cube guess) guess)))
+     (cube-rt-iter 1.0 2.0))
+
+  (cube-rt 27)
+#+END_SRC
+
+#+RESULTS:
+: 3.0000000000000977
+
 
